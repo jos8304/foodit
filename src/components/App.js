@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { getFoods } from "../api";
 import FoodList from "./FoodList";
+import FoodForm from "./FoodForm";
 
 function App() {
   const [order, setOrder] = useState("createdAt");
   const [cursor, setCursor] = useState(null);
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingError, setLoadingError] = useState(null);
+  const [search, setSearch] = useState("");
 
   const handleNewestClick = () => setOrder("createdAt");
 
@@ -20,10 +23,11 @@ function App() {
   const handleLoad = async (options) => {
     let result;
     try {
+      setLoadingError(null);
       setIsLoading(true);
       result = await getFoods(options);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      setLoadingError(error);
       return;
     } finally {
       setIsLoading(false);
@@ -31,7 +35,7 @@ function App() {
     const {
       foods,
       paging: { nextCursor },
-    } = await getFoods(options);
+    } = result;
     if (!options.cursor) {
       setItems(foods);
     } else {
@@ -44,7 +48,13 @@ function App() {
     handleLoad({
       order,
       cursor,
+      search,
     });
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setSearch(e.target["search"].value);
   };
 
   const sortedItems = items.sort((a, b) => b[order] - a[order]);
@@ -52,19 +62,26 @@ function App() {
   useEffect(() => {
     handleLoad({
       order,
+      search,
     });
-  }, [order]);
+  }, [order, search]);
 
   return (
     <div>
+      <FoodForm />
       <button onClick={handleNewestClick}>최신순</button>
       <button onClick={handleCalorieClick}>칼로리순</button>
+      <form onSubmit={handleSearchSubmit}>
+        <input name="search" />
+        <button type="submit">검색</button>
+      </form>
       <FoodList items={sortedItems} onDelete={handleDelete} />
       {cursor && (
         <button disabled={isLoading} onClick={handleLoadMore}>
           더보기
         </button>
       )}
+      {loadingError && <p>{loadingError.message}</p>}
     </div>
   );
 }
